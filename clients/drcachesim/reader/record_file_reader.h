@@ -60,6 +60,7 @@
 // clang-format on
 #else
 #    define VPRINT(reader, level, ...) /* nothing */
+#    undef UNUSED
 #    define UNUSED(x) ((void)(x))
 #endif
 

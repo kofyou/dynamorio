@@ -57,6 +57,7 @@ namespace drmemtrace {
 #ifdef DEBUG
 #    define ASSERT(x, msg) DR_ASSERT_MSG(x, msg)
 #else
+#    undef ASSERT
 #    define ASSERT(x, msg) /* Nothing. */
 #endif
 
