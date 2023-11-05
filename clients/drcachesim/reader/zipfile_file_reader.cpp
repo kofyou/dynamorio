@@ -156,21 +156,63 @@ file_reader_t<zipfile_reader_t>::skip_instructions(uint64_t instruction_count)
            stop_count, cur_instr_count_, chunk_instr_count_,
            cur_instr_count_ +
                (chunk_instr_count_ - (cur_instr_count_ % chunk_instr_count_)));
-    // First, quickly skip over chunks to reach the chunk containing the target.
-    while (cur_instr_count_ +
-               (chunk_instr_count_ - (cur_instr_count_ % chunk_instr_count_)) <
-           stop_count) {
+    // // First, quickly skip over chunks to reach the chunk containing the target.
+    // while (cur_instr_count_ +
+    //            (chunk_instr_count_ - (cur_instr_count_ % chunk_instr_count_)) <
+    //        stop_count) {
+    //     if (unzCloseCurrentFile(zipfile->file) != UNZ_OK) {
+    //         VPRINT(this, 1, "Failed to close zip subfile\n");
+    //         at_eof_ = true;
+    //         return *this;
+    //     }
+    //     int res = unzGoToNextFile(zipfile->file);
+    //     if (res != UNZ_OK) {
+    //         if (res == UNZ_END_OF_LIST_OF_FILE)
+    //             VPRINT(this, 2, "Hit EOF\n");
+    //         else
+    //             VPRINT(this, 2, "Failed to go to next zip subfile\n");
+    //         at_eof_ = true;
+    //         return *this;
+    //     }
+    //     if (unzOpenCurrentFile(zipfile->file) != UNZ_OK) {
+    //         VPRINT(this, 1, "Failed to open zip subfile\n");
+    //         at_eof_ = true;
+    //         return *this;
+    //     }
+    //     cur_instr_count_ += chunk_instr_count_ - (cur_instr_count_ % chunk_instr_count_);
+    //     VPRINT(this, 2, "At %" PRIi64 " instrs at start of new chunk\n",
+    //            cur_instr_count_);
+    //     VPRINT(this, 2,
+    //            "zip chunk stop=%" PRIi64 " cur=%" PRIi64 " chunk=%" PRIi64
+    //            " end-of-chunk=%" PRIi64 "\n",
+    //            stop_count, cur_instr_count_, chunk_instr_count_,
+    //            cur_instr_count_ +
+    //                (chunk_instr_count_ - (cur_instr_count_ % chunk_instr_count_)));
+    //     // Clear cached data from the prior chunk.
+    //     zipfile->cur_buf = zipfile->max_buf;
+    // }
+
+    // find the target chunk directly by name
+    // cur_instr_count_ starts with 1?
+    int current_chunk_id = cur_instr_count_ / chunk_instr_count_;
+    if (cur_instr_count_ % chunk_instr_count_ == 0) {
+        current_chunk_id--;
+    }
+    int target_chunk_id = stop_count / chunk_instr_count_;
+    if (stop_count % chunk_instr_count_ == 0) {
+        target_chunk_id--;
+    }
+    if (current_chunk_id != target_chunk_id) {
         if (unzCloseCurrentFile(zipfile->file) != UNZ_OK) {
             VPRINT(this, 1, "Failed to close zip subfile\n");
             at_eof_ = true;
             return *this;
         }
-        int res = unzGoToNextFile(zipfile->file);
-        if (res != UNZ_OK) {
-            if (res == UNZ_END_OF_LIST_OF_FILE)
-                VPRINT(this, 2, "Hit EOF\n");
-            else
-                VPRINT(this, 2, "Failed to go to next zip subfile\n");
+        std::ostringstream stream;
+        stream << "chunk." << std::setfill('0') << std::setw(4)
+            << target_chunk_id;
+        if (unzLocateFile(zipfile->file, stream.str(), 1) != UNZ_OK) {
+            VPRINT(this, 1, "Failed to locate zip subfile\n");
             at_eof_ = true;
             return *this;
         }
@@ -179,18 +221,20 @@ file_reader_t<zipfile_reader_t>::skip_instructions(uint64_t instruction_count)
             at_eof_ = true;
             return *this;
         }
-        cur_instr_count_ += chunk_instr_count_ - (cur_instr_count_ % chunk_instr_count_);
+        cur_instr_count_ = target_chunk_id * chunk_instr_count_;
         VPRINT(this, 2, "At %" PRIi64 " instrs at start of new chunk\n",
-               cur_instr_count_);
+                cur_instr_count_);
         VPRINT(this, 2,
-               "zip chunk stop=%" PRIi64 " cur=%" PRIi64 " chunk=%" PRIi64
-               " end-of-chunk=%" PRIi64 "\n",
-               stop_count, cur_instr_count_, chunk_instr_count_,
-               cur_instr_count_ +
-                   (chunk_instr_count_ - (cur_instr_count_ % chunk_instr_count_)));
+                "zip chunk stop=%" PRIi64 " cur=%" PRIi64 " chunk=%" PRIi64
+                " end-of-chunk=%" PRIi64 "\n",
+                stop_count, cur_instr_count_, chunk_instr_count_,
+                cur_instr_count_ +
+                    (chunk_instr_count_ - (cur_instr_count_ % chunk_instr_count_)));
         // Clear cached data from the prior chunk.
         zipfile->cur_buf = zipfile->max_buf;
     }
+
+
     // Now do a linear walk the rest of the way, remembering timestamps (we have
     // duplicated timestamps at the start of the chunk to cover any skipped in
     // the fast chunk jumps we just did).
