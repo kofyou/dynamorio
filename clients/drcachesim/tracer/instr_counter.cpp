@@ -109,7 +109,7 @@ hit_instr_count_threshold(app_pc next_pc)
     /* XXX: We could do the same thread-local counters for non-inlined.
      * We'd then switch to std::atomic or something for 32-bit.
      */
-    if (instr_count_threshold() > DELAY_EXACT_THRESHOLD) {
+    if (!op_use_exact_tracing_start.get_value() && instr_count_threshold() > DELAY_EXACT_THRESHOLD) {
         void *drcontext = dr_get_current_drcontext();
         per_thread_t *data = (per_thread_t *)drmgr_get_tls_field(drcontext, tls_idx);
         int64 myval = *(int64 *)TLS_SLOT(data->seg_base, MEMTRACE_TLS_OFFS_ICOUNTDOWN);
@@ -129,7 +129,7 @@ hit_instr_count_threshold(app_pc next_pc)
     }
     if (op_trace_after_instrs.get_value() > 0 &&
         !reached_trace_after_instrs.load(std::memory_order_acquire))
-        NOTIFY(0, "Hit delay threshold: enabling tracing.\n");
+        NOTIFY(0, "Hit delay threshold: enabling tracing after instrs %llu.\n", instr_count);
     else {
         NOTIFY(0, "Hit retrace threshold: enabling tracing for window #%zd.\n",
                tracing_window.load(std::memory_order_acquire));
@@ -210,7 +210,7 @@ event_inscount_app_instruction(void *drcontext, void *tag, instrlist_t *bb,
     instr_t *skip_call = INSTR_CREATE_label(drcontext);
 #        ifdef X86_64
     reg_id_t scratch = DR_REG_NULL;
-    if (instr_count_threshold() > DELAY_EXACT_THRESHOLD) {
+    if (!op_use_exact_tracing_start.get_value() && instr_count_threshold() > DELAY_EXACT_THRESHOLD) {
         /* Contention on a global counter causes high overheads.  We approximate the
          * count by using thread-local counters and only merging into the global
          * every so often.
@@ -254,7 +254,7 @@ event_inscount_app_instruction(void *drcontext, void *tag, instrlist_t *bb,
     }
 #        elif defined(AARCH64)
     reg_id_t scratch1, scratch2 = DR_REG_NULL;
-    if (instr_count_threshold() > DELAY_EXACT_THRESHOLD) {
+    if (!op_use_exact_tracing_start.get_value() && instr_count_threshold() > DELAY_EXACT_THRESHOLD) {
         /* See the x86_64 comment on using thread-local counters to avoid contention. */
         if (drreg_reserve_register(drcontext, bb, where, NULL, &scratch1) !=
             DRREG_SUCCESS)

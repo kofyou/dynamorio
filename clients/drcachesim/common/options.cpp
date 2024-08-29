@@ -319,6 +319,15 @@ droption_t<bool> op_align_endpoints(
     "all threads and is nop-ed as soon as detach starts, eliminating the unevenness. "
     "This also allows omitting threads that did nothing during the burst.");
 
+droption_t<bool> op_use_exact_tracing_start(
+    DROPTION_SCOPE_CLIENT, "use_exact_tracing_start", false,
+    "Use exact counting for -trace_after_instrs and -retrace_every_instrs",
+    "By default there is a threshold (10 * 1024 * 1024) exceeding which "
+    "the counting will be rough to limit the performance impact of synchronizing "
+    "instruction counts across threads."
+    "By turning this on, even if the threshold is exceeded, exact counting "
+    "will be used. It is best if there is only one thread.");
+
 droption_t<bytesize_t> op_trace_after_instrs(
     DROPTION_SCOPE_CLIENT, "trace_after_instrs", 0,
     "Do not start tracing until N instructions",
